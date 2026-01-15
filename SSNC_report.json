@@ -1,0 +1,13 @@
+{
+    "Company": "SSNC",
+    "Revenue": "Check 10-K Manual (Custom Revenue Tag)",
+    "Risk_Keywords_Found": [
+        "litigation",
+        "regulatory",
+        "cybersecurity",
+        "debt",
+        "competition"
+    ],
+    "Source_URL": "https://www.sec.gov/Archives/edgar/data/1402436/0000950170-25-030421-index.html",
+    "Status": "Verified via Fact-Check"
+}
