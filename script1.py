@@ -3,7 +3,7 @@ from edgar import set_identity, Company
 import json
 
 # 1. SEC Identity (Required)
-set_identity("Your Name yourname@example.com")
+set_identity("Your Name email@example.com")
 
 
 def get_risk_analysis(ticker):
@@ -12,12 +12,10 @@ def get_risk_analysis(ticker):
     # 2. Initialize Company
     company = Company(ticker)
 
-    # 3. Pull raw 'Facts' (This bypasses the 'Statement' error)
-    # We pull the most common XBRL tag for Revenue
+    # 3.  We pull the most common XBRL tag for Revenue
     facts = company.get_facts()
 
-    # Financial data often uses 'Revenues' or 'SalesRevenueNet'
-    # We'll try to get the most recent annual value
+    #  try to get the most recent annual value
     try:
         revenue_facts = facts.get_fact("Revenues")
         # Get the most recent value from the factsheet
