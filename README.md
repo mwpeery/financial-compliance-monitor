@@ -1,4 +1,5 @@
-# 🏦 Financial Compliance & Risk Monitor - https://mwpeery-financial-compliance-monitor.streamlit.app/
+# 🏦 Financial Compliance & Risk Monitor - 
+https://mwpeery-financial-compliance-monitor.streamlit.app/
 
 An automated data pipeline that extracts financial risk factors from SEC EDGAR filings and visualizes them in a professional dashboard.
 
