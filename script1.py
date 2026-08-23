@@ -1,9 +1,13 @@
+import sys
 import pandas as pd
 from edgar import set_identity, Company
 import json
 
-# 1. SEC Identity (Required)
-set_identity("Your Name email@example.com")
+# 1. SEC Identity (Required) — EDGAR requires a real name + email on every request
+set_identity("Matt Peery mwpeery@gmail.com")
+
+# Companies tracked by the dashboard — keep this in sync with app.py
+TICKERS = ["SSNC", "BLK", "STT", "ENV"]
 
 
 def get_risk_analysis(ticker):
@@ -12,16 +16,14 @@ def get_risk_analysis(ticker):
     # 2. Initialize Company
     company = Company(ticker)
 
-    # 3.  We pull the most common XBRL tag for Revenue
+    # 3. Pull the most common XBRL tag for Revenue
     facts = company.get_facts()
 
-    #  try to get the most recent annual value
     try:
         revenue_facts = facts.get_fact("Revenues")
-        # Get the most recent value from the factsheet
         latest_rev = revenue_facts.data.iloc[-1]['val']
         rev_formatted = f"${latest_rev:,.0f}"
-    except:
+    except Exception:
         rev_formatted = "Check 10-K Manual (Custom Revenue Tag)"
 
     # 4. Keyword scan for Compliance/Risk
@@ -45,12 +47,20 @@ def get_risk_analysis(ticker):
     return report
 
 
+def run(tickers):
+    results = {}
+    for ticker in tickers:
+        try:
+            results[ticker] = get_risk_analysis(ticker)
+            print(f"✅ {ticker} report generated\n")
+        except Exception as e:
+            print(f"❌ {ticker} failed: {e}\n")
+    return results
+
+
 # --- Execution ---
 if __name__ == "__main__":
-    try:
-        analysis = get_risk_analysis("SSNC")
-        print("\n--- COMPLIANCE REPORT GENERATED ---")
-        for key, value in analysis.items():
-            print(f"{key}: {value}")
-    except Exception as e:
-        print(f"\nAn error occurred: {e}")
+    # `python script1.py`          -> refreshes every tracked ticker
+    # `python script1.py SSNC BLK` -> refreshes just the tickers you list
+    targets = sys.argv[1:] if len(sys.argv) > 1 else TICKERS
+    run(targets)
