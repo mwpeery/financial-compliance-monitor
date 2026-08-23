@@ -1,5 +1,7 @@
 import sys
+import re
 import pandas as pd
+from bs4 import BeautifulSoup
 from edgar import set_identity, Company
 import json
 
@@ -38,17 +40,29 @@ def get_risk_analysis(ticker):
     # company, so we count occurrences instead — frequency is what actually
     # differs company to company, and it lets us surface real context.
     filing = company.get_filings(form="10-K", amendments=False).latest()
-    doc_text = filing.html().lower()
+    raw_html = filing.html()
+
+    # Strip HTML/XBRL markup down to just the human-readable text. Searching
+    # the raw HTML picks up hidden XBRL tag names and URLs (e.g. the tag
+    # "longtermdebtandcapitalleaseobligations" contains "debt" as a
+    # substring), which massively inflates counts with matches nobody
+    # would actually read as a mention of that risk.
+    soup = BeautifulSoup(raw_html, "html.parser")
+    doc_text = soup.get_text(separator=" ")
+    doc_text = re.sub(r"\s+", " ", doc_text).lower()
+
     risk_keywords = ["litigation", "regulatory", "cybersecurity", "debt", "competition"]
 
     risk_counts = {}
     risk_snippets = {}
     for word in risk_keywords:
-        count = doc_text.count(word)
+        # \b word boundaries so "debt" doesn't match inside "indebtedness", etc.
+        matches = list(re.finditer(rf"\b{word}\b", doc_text))
+        count = len(matches)
         if count > 0:
             risk_counts[word] = count
             # grab the sentence around the first mention for context
-            idx = doc_text.find(word)
+            idx = matches[0].start()
             start = max(0, idx - 120)
             end = min(len(doc_text), idx + 120)
             snippet = doc_text[start:end].strip()
