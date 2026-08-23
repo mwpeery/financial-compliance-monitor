@@ -64,20 +64,37 @@ if os.path.exists(report_file):
     with open(report_file, 'r') as f:
         data = json.load(f)
 
+    risk_counts = data.get('Risk_Keyword_Counts', {})
+    risk_snippets = data.get('Risk_Keyword_Snippets', {})
+
     col1, col2, col3 = st.columns(3)
     col1.metric("Ticker Symbol", data['Company'])
     col2.metric("Calculated Revenue", data['Revenue'])
-    col3.metric("Risks Flagged", len(data['Risk_Keywords_Found']))
+    col3.metric("Total Risk Mentions", sum(risk_counts.values()))
 
     st.markdown(f"🔗 [Access Original SEC Filing]({data['Source_URL']})")
 
     st.subheader("⚠️ Regulatory Risk Analysis")
-    if data['Risk_Keywords_Found']:
+    st.caption(
+        "Mention frequency, not presence — most 10-Ks touch on all of these "
+        "boilerplate risk categories, so counting mentions is what actually "
+        "differentiates one filing from another."
+    )
+    if risk_counts:
+        sorted_risks = sorted(risk_counts.items(), key=lambda x: x[1], reverse=True)
+
         chips = "".join(
-            f"<span class='risk-chip'>{r.capitalize()}</span>"
-            for r in data['Risk_Keywords_Found']
+            f"<span class='risk-chip'>{word.capitalize()} × {count}</span>"
+            for word, count in sorted_risks
         )
         st.markdown(chips, unsafe_allow_html=True)
+
+        st.bar_chart({word.capitalize(): count for word, count in sorted_risks})
+
+        with st.expander("See filing context for each keyword"):
+            for word, count in sorted_risks:
+                st.markdown(f"**{word.capitalize()}** ({count} mentions)")
+                st.caption(risk_snippets.get(word, ""))
     else:
         st.write("No flagged keywords found in the latest filing.")
 
