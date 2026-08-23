@@ -8,9 +8,54 @@ from script1 import get_risk_analysis, TICKERS
 # 1. Page Configuration
 st.set_page_config(page_title="EAI Compliance Monitor", page_icon="🏦", layout="wide")
 
-# 2. Styling — pill-style risk badges and a status tag instead of stacked warning boxes
+# Icon per risk category — used in chips, the expander, and context snippets
+RISK_ICONS = {
+    "litigation": "⚖️",
+    "regulatory": "📋",
+    "cybersecurity": "🔒",
+    "debt": "💰",
+    "competition": "🥊",
+}
+
+# 2. Styling
 st.markdown("""
 <style>
+.hero {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #1a365d 100%);
+    padding: 2rem 2.2rem;
+    border-radius: 14px;
+    margin-bottom: 1.6rem;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.hero h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: #ffffff;
+}
+.hero p {
+    margin: 0.4rem 0 0 0;
+    color: #cbd5e1;
+    font-size: 1rem;
+}
+.metric-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 1.1rem 1.3rem;
+    text-align: left;
+}
+.metric-card .label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    margin-bottom: 0.3rem;
+}
+.metric-card .value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #f1f5f9;
+}
 .risk-chip {
     display: inline-block;
     padding: 6px 14px;
@@ -22,6 +67,17 @@ st.markdown("""
     font-size: 0.85rem;
     border: 1px solid #ffe08a;
 }
+.severity-badge {
+    display: inline-block;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+}
+.severity-low { background: #d4edda; color: #155724; }
+.severity-medium { background: #fff3cd; color: #7a5b00; }
+.severity-high { background: #f8d7da; color: #721c24; }
 .status-badge {
     display: inline-block;
     padding: 4px 12px;
@@ -69,9 +125,13 @@ if os.path.exists(report_file):
 st.sidebar.divider()
 st.sidebar.write("Developed for EAI Compliance Standards")
 
-# 4. Main Dashboard Area
-st.title("🏦 Financial Compliance Monitor")
-st.markdown(f"Currently viewing: **{selected_ticker}**")
+# 4. Hero Header
+st.markdown(f"""
+<div class="hero">
+    <h1>🏦 Financial Compliance Monitor</h1>
+    <p>Automated risk-factor analysis from live SEC 10-K filings — currently viewing <strong>{selected_ticker}</strong></p>
+</div>
+""", unsafe_allow_html=True)
 
 # 5. Load Data based on selection
 if os.path.exists(report_file):
@@ -80,12 +140,29 @@ if os.path.exists(report_file):
 
     risk_counts = data.get('Risk_Keyword_Counts', {})
     risk_snippets = data.get('Risk_Keyword_Snippets', {})
+    total_mentions = sum(risk_counts.values())
+
+    # simple severity banding purely on total mention count — a rough visual cue, not a scored risk model
+    if total_mentions < 100:
+        severity, sev_class = "Low", "severity-low"
+    elif total_mentions < 400:
+        severity, sev_class = "Medium", "severity-medium"
+    else:
+        severity, sev_class = "High", "severity-high"
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Ticker Symbol", data['Company'])
-    col2.metric("Calculated Revenue", data['Revenue'])
-    col3.metric("Total Risk Mentions", sum(risk_counts.values()))
+    with col1:
+        st.markdown(f"""<div class="metric-card"><div class="label">Ticker Symbol</div>
+        <div class="value">{data['Company']}</div></div>""", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""<div class="metric-card"><div class="label">Calculated Revenue</div>
+        <div class="value">{data['Revenue']}</div></div>""", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""<div class="metric-card"><div class="label">Total Risk Mentions</div>
+        <div class="value">{total_mentions} <span class="severity-badge {sev_class}">{severity}</span></div></div>""",
+        unsafe_allow_html=True)
 
+    st.markdown("")
     st.markdown(f"🔗 [Access Original SEC Filing]({data['Source_URL']})")
 
     st.subheader("⚠️ Regulatory Risk Analysis")
@@ -98,7 +175,7 @@ if os.path.exists(report_file):
         sorted_risks = sorted(risk_counts.items(), key=lambda x: x[1], reverse=True)
 
         chips = "".join(
-            f"<span class='risk-chip'>{word.capitalize()} × {count}</span>"
+            f"<span class='risk-chip'>{RISK_ICONS.get(word, '')} {word.capitalize()} × {count}</span>"
             for word, count in sorted_risks
         )
         st.markdown(chips, unsafe_allow_html=True)
@@ -107,7 +184,7 @@ if os.path.exists(report_file):
 
         with st.expander("See filing context for each keyword"):
             for word, count in sorted_risks:
-                st.markdown(f"**{word.capitalize()}** ({count} mentions)")
+                st.markdown(f"**{RISK_ICONS.get(word, '')} {word.capitalize()}** ({count} mentions)")
                 st.caption(risk_snippets.get(word, ""))
     else:
         st.write("No flagged keywords found in the latest filing.")
