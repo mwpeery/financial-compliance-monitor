@@ -5,7 +5,7 @@ import pandas as pd
 import altair as alt
 from datetime import datetime
 
-from script1 import get_risk_analysis, TICKERS
+from script1 import get_risk_analysis, get_historical_risk_analysis, TICKERS
 
 # 1. Page Configuration
 st.set_page_config(page_title="EAI Compliance Monitor", page_icon="🏦", layout="wide")
@@ -191,93 +191,253 @@ with st.expander("ℹ️ How to read this dashboard", expanded=False):
        not a calibrated risk model.
     """)
 
-# 5. Load Data based on selection
-if os.path.exists(report_file):
-    with open(report_file, 'r') as f:
-        data = json.load(f)
+# 5. Tabs — single-filing overview, multi-year trend, and cross-company comparison
+tab_overview, tab_trend, tab_peers = st.tabs(["📊 Overview", "📈 Trend", "🏢 Peer Comparison"])
 
-    risk_counts = data.get('Risk_Keyword_Counts', {})
-    risk_snippets = data.get('Risk_Keyword_Snippets', {})
-    total_mentions = sum(risk_counts.values())
+with tab_overview:
+    if os.path.exists(report_file):
+        with open(report_file, 'r') as f:
+            data = json.load(f)
 
-    # simple severity banding purely on total mention count — a rough visual cue, not a scored risk model
-    if total_mentions < 100:
-        severity, sev_class = "Low", "severity-low"
-    elif total_mentions < 400:
-        severity, sev_class = "Medium", "severity-medium"
+        risk_counts = data.get('Risk_Keyword_Counts', {})
+        risk_snippets = data.get('Risk_Keyword_Snippets', {})
+        total_mentions = sum(risk_counts.values())
+
+        # simple severity banding purely on total mention count — a rough visual cue, not a scored risk model
+        if total_mentions < 100:
+            severity, sev_class = "Low", "severity-low"
+        elif total_mentions < 400:
+            severity, sev_class = "Medium", "severity-medium"
+        else:
+            severity, sev_class = "High", "severity-high"
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"""<div class="metric-card"><div class="label">Ticker Symbol</div>
+            <div class="value">{data['Company']}</div></div>""", unsafe_allow_html=True)
+            st.caption("The company currently loaded below.")
+        with col2:
+            st.markdown(f"""<div class="metric-card"><div class="label">Calculated Revenue</div>
+            <div class="value">{data['Revenue']}</div></div>""", unsafe_allow_html=True)
+            st.caption("Most recently reported annual revenue, from the company's official SEC data.")
+        with col3:
+            st.markdown(f"""<div class="metric-card"><div class="label">Total Risk Mentions</div>
+            <div class="value">{total_mentions} <span class="severity-badge {sev_class}">{severity}</span></div></div>""",
+            unsafe_allow_html=True)
+            st.caption("Combined count of all 5 risk keywords across the filing's text — see below for the breakdown.")
+
+        st.markdown("")
+        st.markdown(f"🔗 [Access Original SEC Filing]({data['Source_URL']})")
+
+        st.subheader("⚠️ Regulatory Risk Analysis")
+        st.caption(
+            "Each badge below shows how many times that word appears in the filing "
+            "(e.g. \"Debt × 334\" means the word \"debt\" appears 334 times) — it's a "
+            "raw mention count, not a severity score. Mention frequency, not presence, "
+            "is what differentiates one filing from another, since almost every 10-K "
+            "touches on all five boilerplate risk categories at least once."
+        )
+        if risk_counts:
+            sorted_risks = sorted(risk_counts.items(), key=lambda x: x[1], reverse=True)
+
+            chips = "".join(
+                f"<span class='risk-chip'>{RISK_ICONS.get(word, '')} {word.capitalize()} × {count}</span>"
+                for word, count in sorted_risks
+            )
+            st.markdown(chips, unsafe_allow_html=True)
+
+            st.caption("Ranked by mention count, highest first:")
+            chart_df = pd.DataFrame(
+                {"Risk Category": [w.capitalize() for w, c in sorted_risks],
+                 "Mentions": [c for w, c in sorted_risks]}
+            )
+            bar_chart = (
+                alt.Chart(chart_df)
+                .mark_bar(color="#7fbfff", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+                .encode(
+                    x=alt.X("Risk Category:N", sort=None, axis=alt.Axis(labelAngle=0, title=None)),
+                    y=alt.Y("Mentions:Q", title="Mentions"),
+                    tooltip=["Risk Category", "Mentions"],
+                )
+                .properties(height=300)
+            )
+            st.altair_chart(bar_chart, use_container_width=True)
+
+            with st.expander("See filing context for each keyword"):
+                st.caption("The sentence surrounding the first mention of each word in the filing.")
+                for word, count in sorted_risks:
+                    st.markdown(f"""
+                    <div class="snippet-card">
+                        <div class="snippet-title">{RISK_ICONS.get(word, '')} {word.capitalize()} — {count} mentions</div>
+                        <div class="snippet-text">{risk_snippets.get(word, "")}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.write("No flagged keywords found in the latest filing.")
+
+        st.divider()
+        st.markdown(f"<span class='status-badge'>Audit Status: {data['Status']}</span>", unsafe_allow_html=True)
+
     else:
-        severity, sev_class = "High", "severity-high"
+        st.warning(f"No report found for **{selected_ticker}** yet.")
+        st.write(
+            "Click **Generate / Refresh Report** in the sidebar to pull live data, "
+            f"or run `python script1.py {selected_ticker}` from the terminal."
+        )
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown(f"""<div class="metric-card"><div class="label">Ticker Symbol</div>
-        <div class="value">{data['Company']}</div></div>""", unsafe_allow_html=True)
-        st.caption("The company currently loaded below.")
-    with col2:
-        st.markdown(f"""<div class="metric-card"><div class="label">Calculated Revenue</div>
-        <div class="value">{data['Revenue']}</div></div>""", unsafe_allow_html=True)
-        st.caption("Most recently reported annual revenue, from the company's official SEC data.")
-    with col3:
-        st.markdown(f"""<div class="metric-card"><div class="label">Total Risk Mentions</div>
-        <div class="value">{total_mentions} <span class="severity-badge {sev_class}">{severity}</span></div></div>""",
-        unsafe_allow_html=True)
-        st.caption("Combined count of all 5 risk keywords across the filing's text — see below for the breakdown.")
+# 6. Trend tab — risk-mention frequency and revenue across multiple years of filings
+with tab_trend:
+    history_file = f"{selected_ticker}_history.json"
 
-    st.markdown("")
-    st.markdown(f"🔗 [Access Original SEC Filing]({data['Source_URL']})")
-
-    st.subheader("⚠️ Regulatory Risk Analysis")
+    st.subheader(f"📈 {selected_ticker} — Multi-Year Risk Trend")
     st.caption(
-        "Each badge below shows how many times that word appears in the filing "
-        "(e.g. \"Debt × 334\" means the word \"debt\" appears 334 times) — it's a "
-        "raw mention count, not a severity score. Mention frequency, not presence, "
-        "is what differentiates one filing from another, since almost every 10-K "
-        "touches on all five boilerplate risk categories at least once."
+        "Pulls the last N annual 10-K filings and tracks how often each risk keyword "
+        "appears, filing over filing — a rising line means that topic is showing up "
+        "more often in the company's own disclosures year to year, not that risk itself "
+        "is rising."
     )
-    if risk_counts:
-        sorted_risks = sorted(risk_counts.items(), key=lambda x: x[1], reverse=True)
 
-        chips = "".join(
-            f"<span class='risk-chip'>{RISK_ICONS.get(word, '')} {word.capitalize()} × {count}</span>"
-            for word, count in sorted_risks
-        )
-        st.markdown(chips, unsafe_allow_html=True)
+    years_col, button_col = st.columns([1, 2])
+    with years_col:
+        num_years = st.number_input("Years of history", min_value=2, max_value=10, value=5, step=1)
+    with button_col:
+        st.write("")
+        if st.button(f"📥 Load {int(num_years)}-Year History for {selected_ticker}", use_container_width=True):
+            with st.spinner(f"Pulling {int(num_years)} years of 10-K filings for {selected_ticker}... this can take a minute."):
+                try:
+                    get_historical_risk_analysis(selected_ticker, num_years=int(num_years))
+                    st.success(f"History updated for {selected_ticker}.")
+                except Exception as e:
+                    st.error(f"Couldn't build history for {selected_ticker}: {e}")
 
-        st.caption("Ranked by mention count, highest first:")
-        chart_df = pd.DataFrame(
-            {"Risk Category": [w.capitalize() for w, c in sorted_risks],
-             "Mentions": [c for w, c in sorted_risks]}
+    if os.path.exists(history_file):
+        with open(history_file, 'r') as f:
+            history = json.load(f)
+
+        if not history:
+            st.warning("No filings could be processed for this ticker.")
+        else:
+            # Oldest-first makes for a more natural left-to-right trend line
+            history_sorted = sorted(history, key=lambda r: r.get("Filing_Date") or "")
+
+            rows = []
+            for report in history_sorted:
+                filing_date = report.get("Filing_Date", "Unknown")
+                for word, count in report.get("Risk_Keyword_Counts", {}).items():
+                    rows.append({
+                        "Filing Date": filing_date,
+                        "Risk Category": word.capitalize(),
+                        "Mentions": count,
+                    })
+
+            if rows:
+                trend_df = pd.DataFrame(rows)
+                trend_chart = (
+                    alt.Chart(trend_df)
+                    .mark_line(point=True)
+                    .encode(
+                        x=alt.X("Filing Date:N", sort=None, title=None),
+                        y=alt.Y("Mentions:Q", title="Mentions"),
+                        color=alt.Color("Risk Category:N", title="Risk Category"),
+                        tooltip=["Filing Date", "Risk Category", "Mentions"],
+                    )
+                    .properties(height=350)
+                )
+                st.altair_chart(trend_chart, use_container_width=True)
+            else:
+                st.write("No risk-keyword data found across the loaded filings.")
+
+            revenue_rows = [
+                {"Filing Date": r.get("Filing_Date", "Unknown"), "Revenue": r.get("Revenue_Raw")}
+                for r in history_sorted if r.get("Revenue_Raw") is not None
+            ]
+            if revenue_rows:
+                st.caption("Reported annual revenue across the same filings:")
+                revenue_df = pd.DataFrame(revenue_rows)
+                revenue_chart = (
+                    alt.Chart(revenue_df)
+                    .mark_bar(color="#7fbfff", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+                    .encode(
+                        x=alt.X("Filing Date:N", sort=None, title=None),
+                        y=alt.Y("Revenue:Q", title="Revenue ($)"),
+                        tooltip=["Filing Date", "Revenue"],
+                    )
+                    .properties(height=250)
+                )
+                st.altair_chart(revenue_chart, use_container_width=True)
+
+            with st.expander("Raw filings included in this trend"):
+                for report in history_sorted:
+                    st.markdown(
+                        f"- **{report.get('Filing_Date', 'Unknown')}** — "
+                        f"[View filing]({report.get('Source_URL', '#')})"
+                    )
+    else:
+        st.info(
+            f"No history loaded yet for **{selected_ticker}**. Click "
+            f"**Load {int(num_years)}-Year History** above, or run "
+            f"`python script1.py --history {selected_ticker}` from the terminal."
         )
-        bar_chart = (
-            alt.Chart(chart_df)
+
+# 7. Peer Comparison tab — how the tracked companies stack up against each other
+with tab_peers:
+    st.subheader("🏢 Peer Comparison")
+    st.caption(
+        "Compares the most recently generated report for each tracked company. "
+        "Use **Generate / Refresh Report** in the sidebar for any ticker you want included here."
+    )
+
+    peer_rows = []
+    revenue_rows = []
+    missing = []
+    for t in TICKERS:
+        f_path = f"{t}_report.json"
+        if not os.path.exists(f_path):
+            missing.append(t)
+            continue
+        with open(f_path, "r") as f:
+            peer_data = json.load(f)
+        for word, count in peer_data.get("Risk_Keyword_Counts", {}).items():
+            peer_rows.append({"Company": t, "Risk Category": word.capitalize(), "Mentions": count})
+        if peer_data.get("Revenue_Raw") is not None:
+            revenue_rows.append({"Company": t, "Revenue": peer_data["Revenue_Raw"]})
+
+    if missing:
+        st.info(
+            "No report yet for: " + ", ".join(f"**{t}**" for t in missing) +
+            ". Pick each ticker in the sidebar and hit Generate/Refresh to include it here."
+        )
+
+    if peer_rows:
+        st.markdown("**Risk mentions by category, across companies**")
+        peer_df = pd.DataFrame(peer_rows)
+        peer_chart = (
+            alt.Chart(peer_df)
+            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .encode(
+                x=alt.X("Company:N", title=None),
+                y=alt.Y("Mentions:Q", title="Mentions"),
+                color=alt.Color("Risk Category:N", title="Risk Category"),
+                xOffset="Risk Category:N",
+                tooltip=["Company", "Risk Category", "Mentions"],
+            )
+            .properties(height=350)
+        )
+        st.altair_chart(peer_chart, use_container_width=True)
+    else:
+        st.warning("No reports generated yet for any tracked ticker — nothing to compare.")
+
+    if revenue_rows:
+        st.markdown("**Reported annual revenue, across companies**")
+        revenue_df = pd.DataFrame(revenue_rows)
+        revenue_chart = (
+            alt.Chart(revenue_df)
             .mark_bar(color="#7fbfff", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
             .encode(
-                x=alt.X("Risk Category:N", sort=None, axis=alt.Axis(labelAngle=0, title=None)),
-                y=alt.Y("Mentions:Q", title="Mentions"),
-                tooltip=["Risk Category", "Mentions"],
+                x=alt.X("Company:N", title=None),
+                y=alt.Y("Revenue:Q", title="Revenue ($)"),
+                tooltip=["Company", "Revenue"],
             )
-            .properties(height=300)
+            .properties(height=250)
         )
-        st.altair_chart(bar_chart, use_container_width=True)
-
-        with st.expander("See filing context for each keyword"):
-            st.caption("The sentence surrounding the first mention of each word in the filing.")
-            for word, count in sorted_risks:
-                st.markdown(f"""
-                <div class="snippet-card">
-                    <div class="snippet-title">{RISK_ICONS.get(word, '')} {word.capitalize()} — {count} mentions</div>
-                    <div class="snippet-text">{risk_snippets.get(word, "")}</div>
-                </div>
-                """, unsafe_allow_html=True)
-    else:
-        st.write("No flagged keywords found in the latest filing.")
-
-    st.divider()
-    st.markdown(f"<span class='status-badge'>Audit Status: {data['Status']}</span>", unsafe_allow_html=True)
-
-else:
-    st.warning(f"No report found for **{selected_ticker}** yet.")
-    st.write(
-        "Click **Generate / Refresh Report** in the sidebar to pull live data, "
-        f"or run `python script1.py {selected_ticker}` from the terminal."
-    )
+        st.altair_chart(revenue_chart, use_container_width=True)
