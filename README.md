@@ -2,7 +2,7 @@
 
 Live app: https://mwpeery-financial-compliance-monitor.streamlit.app/
 
-A Streamlit dashboard that pulls a company's 10-K filings straight from SEC EDGAR and counts how often it mentions five common risk topics: litigation, regulatory, cybersecurity, debt, and competition. Almost every 10-K touches on all five somewhere in the boilerplate, so a plain yes/no check doesn't tell you much — how often a topic comes up, and where, is more useful.
+A Streamlit dashboard that pulls a company's 10-K filings straight from SEC EDGAR and counts how often it mentions five common risk topics: litigation, regulatory, cybersecurity, debt, and competition. Almost every 10-K touches on all five somewhere in the boilerplate, so a plain yes/no check doesn't tell you much... how often a topic comes up, and where, is more useful.
 
 ## What it does
 
@@ -33,7 +33,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-No network calls in the test suite — just the keyword-matching, HTML-cleaning, and caching logic. Runs in CI on every push and PR.
+No network calls in the test suite... just the keyword-matching, HTML-cleaning, and caching logic. Runs in CI on every push and PR.
 
 ## Built with
 
