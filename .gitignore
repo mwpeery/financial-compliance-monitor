@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.cache/
+
+# Generated at runtime — pulled fresh from SEC EDGAR, not source
+*_report.json
+*_history.json
+
+.venv/
+venv/
