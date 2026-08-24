@@ -1,6 +1,8 @@
 import streamlit as st
 import json
 import os
+import pandas as pd
+import altair as alt
 from datetime import datetime
 
 from script1 import get_risk_analysis, TICKERS
@@ -242,7 +244,21 @@ if os.path.exists(report_file):
         st.markdown(chips, unsafe_allow_html=True)
 
         st.caption("Ranked by mention count, highest first:")
-        st.bar_chart({word.capitalize(): count for word, count in sorted_risks})
+        chart_df = pd.DataFrame(
+            {"Risk Category": [w.capitalize() for w, c in sorted_risks],
+             "Mentions": [c for w, c in sorted_risks]}
+        )
+        bar_chart = (
+            alt.Chart(chart_df)
+            .mark_bar(color="#7fbfff", cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .encode(
+                x=alt.X("Risk Category:N", sort=None, axis=alt.Axis(labelAngle=0, title=None)),
+                y=alt.Y("Mentions:Q", title="Mentions"),
+                tooltip=["Risk Category", "Mentions"],
+            )
+            .properties(height=300)
+        )
+        st.altair_chart(bar_chart, use_container_width=True)
 
         with st.expander("See filing context for each keyword"):
             st.caption("The sentence surrounding the first mention of each word in the filing.")
