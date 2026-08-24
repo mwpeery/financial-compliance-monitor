@@ -23,14 +23,27 @@ def get_risk_analysis(ticker):
     company = Company(ticker)
 
     # 3. Pull the most common XBRL tag for Revenue
+    # Companies don't all use the same XBRL tag for revenue — "Revenues" is
+    # common but plenty of filers (including SSNC) use a different one, most
+    # often the newer ASC 606 contract-revenue tag. Try each in order and use
+    # whichever one the filing actually has.
     facts = company.get_facts()
+    revenue_tags = [
+        "Revenues",
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+        "SalesRevenueNet",
+    ]
 
-    try:
-        revenue_facts = facts.get_fact("Revenues")
-        latest_rev = revenue_facts.data.iloc[-1]['val']
-        rev_formatted = f"${latest_rev:,.0f}"
-    except Exception:
-        rev_formatted = "Check 10-K Manual (Custom Revenue Tag)"
+    rev_formatted = "Check 10-K Manual (Custom Revenue Tag)"
+    for tag in revenue_tags:
+        try:
+            revenue_facts = facts.get_fact(tag)
+            latest_rev = revenue_facts.data.iloc[-1]['val']
+            rev_formatted = f"${latest_rev:,.0f}"
+            break
+        except Exception:
+            continue
 
     # 4. Keyword scan for Compliance/Risk
     # NOTE: these 5 topics are boilerplate that nearly every 10-K's Item 1A
