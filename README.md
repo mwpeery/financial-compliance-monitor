@@ -1,37 +1,40 @@
-# 🏦 Financial Compliance & Risk Monitor - 
-https://mwpeery-financial-compliance-monitor.streamlit.app/
+# Financial Compliance & Risk Monitor
 
-An automated data pipeline that extracts financial risk factors from SEC EDGAR filings and visualizes them in a professional dashboard.
+Live app: https://mwpeery-financial-compliance-monitor.streamlit.app/
 
-## 🚀 Overview
-This project automates the manual process of auditing 10-K filings. It identifies key regulatory risks (e.g., Litigation, Cybersecurity) to assist in compliance monitoring.
+A Streamlit dashboard that pulls a company's 10-K filings straight from SEC EDGAR and counts how often it mentions five common risk topics: litigation, regulatory, cybersecurity, debt, and competition. Almost every 10-K touches on all five somewhere in the boilerplate, so a plain yes/no check doesn't tell you much — how often a topic comes up, and where, is more useful.
 
-## 🛠️ Features
-- **Data Pipeline:** Extracts live XBRL data using the SEC EDGAR API.
-- **Interactive Dashboard:** Built with Streamlit to display company metrics and risks, across three tabs:
-  - **Overview** — the latest 10-K for one company: revenue, risk-keyword chips, and filing context snippets.
-  - **Trend** — pulls the last N years of 10-Ks for a company and charts how often each risk keyword shows up, filing over filing, alongside a revenue trend.
-  - **Peer Comparison** — a grouped bar chart of risk mentions and revenue across every tracked ticker at once.
-- **Automated Reporting:** Generates structured JSON reports (`{TICKER}_report.json`, `{TICKER}_history.json`) for audit trails.
-- **Caching:** Filing text and computed reports are cached locally (`.cache/`, keyed by ticker + accession number) so re-running the app doesn't re-hit EDGAR for a filing it's already processed.
-- **Resilience:** SEC/EDGAR calls retry with backoff and fail with a clear message instead of crashing the app.
+## What it does
 
-## 🧪 Running the tests
+- Pulls the latest 10-K for a ticker and shows revenue plus risk-keyword counts, with the surrounding sentence for context.
+- Pulls the last several years of filings for one company and charts how those keyword counts move over time.
+- Compares risk mentions and revenue across the four tracked companies (SSNC, BLK, STT, SEIC) side by side.
+- Caches processed filings locally so it isn't re-downloading the same filing from EDGAR every time.
+- Retries EDGAR requests a couple times before giving up instead of just crashing.
+
+## Running it
+
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+To pull a report from the command line instead of the UI:
+
+```bash
+python script1.py SSNC
+python script1.py --history SSNC   # last 5 years of filings
+```
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
 pytest
 ```
-The suite covers the keyword-counting, HTML-cleaning, revenue-extraction, and caching logic in `script1.py` with no network calls — it runs in CI on every push/PR (see `.github/workflows/tests.yml`).
 
-## 📊 Pulling a multi-year trend from the CLI
-```bash
-python script1.py --history SSNC        # last 5 years (default)
-python script1.py --history SSNC BLK    # multiple tickers
-```
+No network calls in the test suite — just the keyword-matching, HTML-cleaning, and caching logic. Runs in CI on every push and PR.
 
-## 📈 Tech Stack
-- **Python** (Core Analysis)
-- **Streamlit** (Visualization)
-- **Pandas** (Data Formatting)
-- **Altair** (Charting)
-- **pytest** (Testing)
+## Built with
+
+Python, Streamlit, pandas, Altair, edgartools, pytest.
