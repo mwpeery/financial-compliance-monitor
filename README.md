@@ -8,7 +8,7 @@ A Streamlit dashboard that pulls a company's 10-K filings straight from SEC EDGA
 
 - Pulls the latest 10-K for a ticker and shows revenue plus risk-keyword counts, with the surrounding sentence for context.
 - Pulls the last several years of filings for one company and charts how those keyword counts move over time.
-- Compares risk mentions and revenue across the four tracked companies (SSNC, BLK, STT, SEIC) side by side.
+- Compares risk mentions and revenue across companies that YOU pick.
 - Caches processed filings locally so it isn't re-downloading the same filing from EDGAR every time.
 - Retries EDGAR requests a couple times before giving up instead of just crashing.
 
