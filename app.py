@@ -20,6 +20,17 @@ RISK_ICONS = {
 # 2. Styling
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* Hide Streamlit's default chrome for a cleaner, less "templated" look */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header[data-testid="stHeader"] { background: transparent; }
+
 .hero {
     background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #1a365d 100%);
     padding: 2rem 2.2rem;
@@ -30,7 +41,9 @@ st.markdown("""
 .hero h1 {
     margin: 0;
     font-size: 2rem;
+    font-weight: 800;
     color: #ffffff;
+    letter-spacing: -0.01em;
 }
 .hero p {
     margin: 0.4rem 0 0 0;
@@ -45,11 +58,12 @@ st.markdown("""
     text-align: left;
 }
 .metric-card .label {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
+    font-weight: 600;
     color: #94a3b8;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.35rem;
 }
 .metric-card .value {
     font-size: 1.6rem;
@@ -85,6 +99,36 @@ st.markdown("""
     background: #d4edda;
     color: #155724;
     font-weight: 600;
+}
+.snippet-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 3px solid #2c5282;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 0.7rem;
+}
+.snippet-card .snippet-title {
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 0.25rem;
+}
+.snippet-card .snippet-text {
+    color: #94a3b8;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+/* Buttons — quick picks and Generate/Refresh */
+.stButton > button {
+    border-radius: 8px;
+    font-weight: 600;
+    border: 1px solid rgba(255,255,255,0.12);
+    transition: all 0.15s ease;
+}
+.stButton > button:hover {
+    border-color: #2c5282;
+    color: #7fa8d9;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -203,8 +247,12 @@ if os.path.exists(report_file):
         with st.expander("See filing context for each keyword"):
             st.caption("The sentence surrounding the first mention of each word in the filing.")
             for word, count in sorted_risks:
-                st.markdown(f"**{RISK_ICONS.get(word, '')} {word.capitalize()}** ({count} mentions)")
-                st.caption(risk_snippets.get(word, ""))
+                st.markdown(f"""
+                <div class="snippet-card">
+                    <div class="snippet-title">{RISK_ICONS.get(word, '')} {word.capitalize()} — {count} mentions</div>
+                    <div class="snippet-text">{risk_snippets.get(word, "")}</div>
+                </div>
+                """, unsafe_allow_html=True)
     else:
         st.write("No flagged keywords found in the latest filing.")
 
